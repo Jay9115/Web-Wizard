@@ -2,10 +2,10 @@
 
 A modern, scalable, and accessible student portal with role-based management system built with Next.js, Node/Express, and Firebase.
 Team
-23DCS076 Jay Patel
-23DCS075 Isha Patel
-23DCS081 Mahi Patel
-23DCS088 Rudra Patel
+-23DCS076 Jay Patel
+-23DCS075 Isha Patel
+-23DCS081 Mahi Patel
+-23DCS088 Rudra Patel
 
 ## 🌟 Features
 
