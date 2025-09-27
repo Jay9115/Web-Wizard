@@ -6,11 +6,33 @@ const { db, collections, roles } = require('../config/firebase');
 const { 
   validateRegistration, 
   validateLogin, 
+  validateProfileUpdate,
+  validatePasswordChange,
   handleValidationErrors 
 } = require('../middleware/validation');
 const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
+
+// Session management helper
+const createSession = async (userId, userEmail, rememberMe = false) => {
+  const sessionId = jwt.sign({ userId, email: userEmail }, process.env.JWT_SECRET);
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + (rememberMe ? 30 : 1));
+  
+  const sessionData = {
+    sessionId,
+    userId,
+    userEmail,
+    createdAt: new Date().toISOString(),
+    expiresAt: expiresAt.toISOString(),
+    isActive: true,
+    rememberMe,
+  };
+
+  await db.collection(collections.SESSIONS).add(sessionData);
+  return sessionId;
+};
 
 // Generate JWT token
 const generateToken = (userId, email, role) => {
@@ -30,7 +52,7 @@ const getCookieOptions = (rememberMe = false) => ({
 });
 
 // @route   POST /api/auth/register
-// @desc    Register a new user
+// @desc    Register a new user with enhanced security
 // @access  Public
 router.post('/register', validateRegistration, handleValidationErrors, async (req, res) => {
   try {
@@ -66,11 +88,11 @@ router.post('/register', validateRegistration, handleValidationErrors, async (re
       }
     }
 
-    // Hash password
+    // Hash password with enhanced security
     const saltRounds = parseInt(process.env.BCRYPT_ROUNDS) || 12;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-    // Create user document
+    // Create user document with enhanced fields
     const userData = {
       email: email.toLowerCase(),
       password: hashedPassword,
@@ -81,20 +103,27 @@ router.post('/register', validateRegistration, handleValidationErrors, async (re
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       lastLogin: null,
-      profileComplete: false,
+      profileComplete: !!(studentId && phone),
+      loginAttempts: 0,
+      lockUntil: null,
+      emailVerified: false,
+      profilePicture: null,
       ...(studentId && { studentId: studentId.toUpperCase() }),
       ...(phone && { phone }),
     };
 
-    // Save user to Firestore
+    // Save user to database
     const userRef = await db.collection(collections.USERS).add(userData);
     const userId = userRef.id;
 
-    // Generate JWT token
+    // Generate JWT token and create session
     const token = generateToken(userId, userData.email, userData.role);
+    const sessionId = await createSession(userId, userData.email, false);
 
-    // Set cookie
-    res.cookie('authToken', token, getCookieOptions());
+    // Set secure cookie
+    const cookieOptions = getCookieOptions(false);
+    res.cookie('authToken', token, cookieOptions);
+    res.cookie('sessionId', sessionId, cookieOptions);
 
     // Remove password from response
     const { password: _, ...userResponse } = userData;
@@ -108,6 +137,7 @@ router.post('/register', validateRegistration, handleValidationErrors, async (re
           ...userResponse,
         },
         token,
+        sessionCreated: true,
       },
     });
 
@@ -119,6 +149,10 @@ router.post('/register', validateRegistration, handleValidationErrors, async (re
       timestamp: new Date().toISOString(),
       ipAddress: req.ip,
       userAgent: req.get('User-Agent'),
+      details: {
+        role: userData.role,
+        profileComplete: userData.profileComplete,
+      },
     });
 
   } catch (error) {
@@ -131,7 +165,7 @@ router.post('/register', validateRegistration, handleValidationErrors, async (re
 });
 
 // @route   POST /api/auth/login
-// @desc    Login user
+// @desc    Login user with enhanced session management
 // @access  Public
 router.post('/login', validateLogin, handleValidationErrors, async (req, res) => {
   try {
@@ -163,30 +197,54 @@ router.post('/login', validateLogin, handleValidationErrors, async (req, res) =>
       });
     }
 
+    // Check for account lockout
+    if (userData.lockUntil && new Date() < new Date(userData.lockUntil)) {
+      return res.status(423).json({
+        success: false,
+        message: 'Account temporarily locked due to multiple failed login attempts. Please try again later.',
+      });
+    }
+
     // Compare password
     const isPasswordValid = await bcrypt.compare(password, userData.password);
 
     if (!isPasswordValid) {
+      // Increment login attempts
+      const loginAttempts = (userData.loginAttempts || 0) + 1;
+      const lockUntil = loginAttempts >= 5 ? new Date(Date.now() + 30 * 60 * 1000).toISOString() : null; // 30 minutes lock
+
+      await userDoc.ref.update({
+        loginAttempts,
+        ...(lockUntil && { lockUntil }),
+        updatedAt: new Date().toISOString(),
+      });
+
       return res.status(401).json({
         success: false,
-        message: 'Invalid email or password',
+        message: `Invalid email or password. ${5 - loginAttempts} attempts remaining.`,
       });
     }
 
-    // Update last login
+    // Reset login attempts on successful login
+    const loginTime = new Date().toISOString();
     await userDoc.ref.update({
-      lastLogin: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      lastLogin: loginTime,
+      loginAttempts: 0,
+      lockUntil: null,
+      updatedAt: loginTime,
     });
 
-    // Generate JWT token
+    // Generate JWT token and create session
     const token = generateToken(userId, userData.email, userData.role);
+    const sessionId = await createSession(userId, userData.email, rememberMe);
 
-    // Set cookie with remember me option
-    res.cookie('authToken', token, getCookieOptions(rememberMe));
+    // Set secure cookies
+    const cookieOptions = getCookieOptions(rememberMe);
+    res.cookie('authToken', token, cookieOptions);
+    res.cookie('sessionId', sessionId, cookieOptions);
 
-    // Remove password from response
-    const { password: _, ...userResponse } = userData;
+    // Remove sensitive data from response
+    const { password: _, loginAttempts: __, lockUntil: ___, ...userResponse } = userData;
 
     res.json({
       success: true,
@@ -195,9 +253,11 @@ router.post('/login', validateLogin, handleValidationErrors, async (req, res) =>
         user: {
           id: userId,
           ...userResponse,
-          lastLogin: new Date().toISOString(),
+          lastLogin: loginTime,
         },
         token,
+        sessionId,
+        rememberMe,
       },
     });
 
@@ -206,10 +266,13 @@ router.post('/login', validateLogin, handleValidationErrors, async (req, res) =>
       action: 'USER_LOGIN',
       userId,
       userEmail: userData.email,
-      timestamp: new Date().toISOString(),
+      timestamp: loginTime,
       ipAddress: req.ip,
       userAgent: req.get('User-Agent'),
-      rememberMe,
+      details: {
+        rememberMe,
+        sessionId,
+      },
     });
 
   } catch (error) {
@@ -222,12 +285,37 @@ router.post('/login', validateLogin, handleValidationErrors, async (req, res) =>
 });
 
 // @route   POST /api/auth/logout
-// @desc    Logout user
+// @desc    Logout user and invalidate session
 // @access  Private
 router.post('/logout', authenticateToken, async (req, res) => {
   try {
-    // Clear the auth cookie
+    const sessionId = req.cookies?.sessionId;
+
+    // Invalidate session in database if exists
+    if (sessionId) {
+      const sessionQuery = await db
+        .collection(collections.SESSIONS)
+        .where('sessionId', '==', sessionId)
+        .limit(1)
+        .get();
+
+      if (!sessionQuery.empty) {
+        const sessionDoc = sessionQuery.docs[0];
+        await sessionDoc.ref.update({
+          isActive: false,
+          loggedOutAt: new Date().toISOString(),
+        });
+      }
+    }
+
+    // Clear all auth-related cookies
     res.clearCookie('authToken', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+    });
+    
+    res.clearCookie('sessionId', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
@@ -246,6 +334,9 @@ router.post('/logout', authenticateToken, async (req, res) => {
       timestamp: new Date().toISOString(),
       ipAddress: req.ip,
       userAgent: req.get('User-Agent'),
+      details: {
+        sessionId,
+      },
     });
 
   } catch (error) {
@@ -295,13 +386,69 @@ router.get('/me', authenticateToken, async (req, res) => {
 
 // @route   POST /api/auth/refresh-token
 // @desc    Refresh JWT token
-// @access  Private
-router.post('/refresh-token', authenticateToken, async (req, res) => {
+// @access  Private (but handle missing/invalid tokens gracefully)
+router.post('/refresh-token', async (req, res) => {
   try {
-    const { userId, email, role } = req.user;
+    // Get token from Authorization header or cookies
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+    const cookieToken = req.cookies?.authToken;
+    
+    const tokenToVerify = token || cookieToken;
+    
+    if (!tokenToVerify) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided for refresh',
+      });
+    }
+
+    // Verify the existing token (even if expired, we still want to check if it's valid)
+    let decoded;
+    try {
+      decoded = jwt.verify(tokenToVerify, process.env.JWT_SECRET);
+    } catch (error) {
+      if (error.name === 'TokenExpiredError') {
+        // Token is expired, but we can still decode it to get user info
+        decoded = jwt.decode(tokenToVerify);
+      } else {
+        // Token is invalid
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid token for refresh',
+        });
+      }
+    }
+
+    if (!decoded || !decoded.userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token payload',
+      });
+    }
+
+    // Verify user still exists in database
+    const userDoc = await db.collection(collections.USERS).doc(decoded.userId).get();
+    
+    if (!userDoc.exists) {
+      return res.status(401).json({
+        success: false,
+        message: 'User no longer exists',
+      });
+    }
+    
+    const userData = userDoc.data();
+    
+    // Check if user is active
+    if (userData.status === 'inactive') {
+      return res.status(401).json({
+        success: false,
+        message: 'User account is inactive',
+      });
+    }
 
     // Generate new token
-    const newToken = generateToken(userId, email, role);
+    const newToken = generateToken(decoded.userId, userData.email, userData.role);
 
     // Set new cookie
     res.cookie('authToken', newToken, getCookieOptions());
@@ -328,12 +475,7 @@ router.post('/refresh-token', authenticateToken, async (req, res) => {
 // @access  Private
 router.post('/change-password', [
   authenticateToken,
-  body('currentPassword').notEmpty().withMessage('Current password is required'),
-  body('newPassword')
-    .isLength({ min: 8 })
-    .withMessage('New password must be at least 8 characters long')
-    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
-    .withMessage('New password must contain at least one lowercase letter, one uppercase letter, one number, and one special character'),
+  validatePasswordChange,
   handleValidationErrors,
 ], async (req, res) => {
   try {
@@ -392,6 +534,72 @@ router.post('/change-password', [
     res.status(500).json({
       success: false,
       message: 'Internal server error during password change',
+    });
+  }
+});
+
+// @route   POST /api/auth/validate-session
+// @desc    Validate current session
+// @access  Private
+router.post('/validate-session', authenticateToken, async (req, res) => {
+  try {
+    const sessionId = req.cookies?.sessionId;
+    const userId = req.user.userId;
+
+    if (!sessionId) {
+      return res.status(401).json({
+        success: false,
+        message: 'No session found',
+      });
+    }
+
+    // Check session in database
+    const sessionQuery = await db
+      .collection(collections.SESSIONS)
+      .where('sessionId', '==', sessionId)
+      .where('userId', '==', userId)
+      .where('isActive', '==', true)
+      .limit(1)
+      .get();
+
+    if (sessionQuery.empty) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid or expired session',
+      });
+    }
+
+    const sessionDoc = sessionQuery.docs[0];
+    const sessionData = sessionDoc.data();
+
+    // Check if session is expired
+    if (new Date() > new Date(sessionData.expiresAt)) {
+      await sessionDoc.ref.update({
+        isActive: false,
+        expiredAt: new Date().toISOString(),
+      });
+
+      return res.status(401).json({
+        success: false,
+        message: 'Session expired',
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Session is valid',
+      data: {
+        sessionId,
+        expiresAt: sessionData.expiresAt,
+        rememberMe: sessionData.rememberMe,
+      },
+    });
+
+  } catch (error) {
+    console.error('Session validation error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error during session validation',
     });
   }
 });

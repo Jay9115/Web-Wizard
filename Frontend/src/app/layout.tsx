@@ -1,12 +1,16 @@
 import '../styles/globals.css'
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 
 export const metadata: Metadata = {
   title: 'Student Portal - WebWizard',
   description: 'A modern student portal with role-based management system',
   keywords: 'student, portal, education, management, authentication',
   authors: [{ name: 'WebWizard Team' }],
-  viewport: 'width=device-width, initial-scale=1',
+}
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
   themeColor: '#007AFF',
 }
 

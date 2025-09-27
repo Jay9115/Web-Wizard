@@ -97,6 +97,10 @@ body {
   @apply glass-input;
 }
 
+.form-display {
+  @apply px-4 py-3 rounded-xl bg-white/5 text-white/90 border border-white/10;
+}
+
 .form-error {
   @apply text-red-300 text-sm mt-1 block;
 }

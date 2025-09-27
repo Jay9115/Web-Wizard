@@ -41,9 +41,24 @@ api.interceptors.response.use(
 
     // Handle 401 errors (token expired or invalid)
     if (error.response?.status === 401 && !originalRequest._retry) {
+      // Don't try to refresh token for login, register, or refresh-token endpoints
+      const isAuthEndpoint = originalRequest.url?.includes('/auth/login') || 
+                            originalRequest.url?.includes('/auth/register') ||
+                            originalRequest.url?.includes('/auth/refresh-token');
+      
+      if (isAuthEndpoint) {
+        return Promise.reject(error);
+      }
+
       originalRequest._retry = true;
 
       try {
+        // Only try to refresh if we have a token
+        const existingToken = localStorage.getItem('authToken') || Cookies.get('authToken');
+        if (!existingToken) {
+          throw new Error('No token available');
+        }
+
         // Try to refresh token
         const refreshResponse = await api.post('/auth/refresh-token');
         const newToken = refreshResponse.data.data.token;
@@ -56,10 +71,15 @@ api.interceptors.response.use(
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
         return api(originalRequest);
       } catch (refreshError) {
-        // Refresh failed, redirect to login
+        // Refresh failed, clear tokens and redirect to login
         localStorage.removeItem('authToken');
         Cookies.remove('authToken');
-        window.location.href = '/login';
+        
+        // Only redirect if we're not already on the login page
+        if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+          window.location.href = '/login';
+        }
+        
         return Promise.reject(refreshError);
       }
     }

@@ -12,13 +12,35 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [showDemoCredentials, setShowDemoCredentials] = useState(true)
   const router = useRouter()
 
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors },
   } = useForm<LoginCredentials & { rememberMe: boolean }>()
+
+  // Demo credentials
+  const demoCredentials = {
+    student: {
+      email: 'student@demo.com',
+      password: 'student123',
+      role: 'Student'
+    },
+    admin: {
+      email: 'admin@demo.com',
+      password: 'admin123',
+      role: 'Admin'
+    }
+  }
+
+  const fillDemoCredentials = (type: 'student' | 'admin') => {
+    const credentials = demoCredentials[type]
+    setValue('email', credentials.email)
+    setValue('password', credentials.password)
+  }
 
   const onSubmit = async (data: LoginCredentials & { rememberMe: boolean }) => {
     try {
@@ -70,6 +92,75 @@ export default function LoginPage() {
           transition={{ delay: 0.1 }}
           className="glass-card"
         >
+          {/* Demo Credentials Section */}
+          {showDemoCredentials && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="mb-6 p-4 bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 rounded-xl"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-white font-semibold text-sm flex items-center">
+                  <CheckCircle className="w-4 h-4 mr-2 text-green-400" />
+                  Demo Credentials
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setShowDemoCredentials(false)}
+                  className="text-white/60 hover:text-white transition-colors text-xs"
+                >
+                  Hide
+                </button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => fillDemoCredentials('student')}
+                  className="p-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg transition-all duration-200 group"
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-white text-sm font-medium">Student Account</span>
+                    <User className="w-4 h-4 text-blue-400 group-hover:text-blue-300" />
+                  </div>
+                  <div className="text-xs text-white/70 text-left">
+                    <div>📧 {demoCredentials.student.email}</div>
+                    <div>🔒 {demoCredentials.student.password}</div>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => fillDemoCredentials('admin')}
+                  className="p-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg transition-all duration-200 group"
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-white text-sm font-medium">Admin Account</span>
+                    <Lock className="w-4 h-4 text-purple-400 group-hover:text-purple-300" />
+                  </div>
+                  <div className="text-xs text-white/70 text-left">
+                    <div>📧 {demoCredentials.admin.email}</div>
+                    <div>🔒 {demoCredentials.admin.password}</div>
+                  </div>
+                </button>
+              </div>
+              <p className="text-xs text-white/60 mt-3 text-center">
+                Click on any account above to auto-fill the login form
+              </p>
+            </motion.div>
+          )}
+
+          {!showDemoCredentials && (
+            <motion.button
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              type="button"
+              onClick={() => setShowDemoCredentials(true)}
+              className="mb-4 text-xs text-blue-400 hover:text-blue-300 transition-colors flex items-center"
+            >
+              <CheckCircle className="w-3 h-3 mr-1" />
+              Show Demo Credentials
+            </motion.button>
+          )}
+
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             {/* Error Alert */}
             {error && (
