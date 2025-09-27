@@ -162,6 +162,12 @@ export interface SearchParams extends PaginationParams {
 
 // Auth API
 export const authAPI = {
+  // Get demo credentials
+  getDemoCredentials: async (): Promise<ApiResponse<{ credentials: { student: { email: string; password: string; name: string }; admin: { email: string; password: string; name: string } } }>> => {
+    const response = await api.get('/auth/demo-credentials');
+    return response.data;
+  },
+
   // Register new user
   register: async (userData: RegisterData): Promise<ApiResponse<{ user: User; token: string }>> => {
     const response = await api.post('/auth/register', userData);

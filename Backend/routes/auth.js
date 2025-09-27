@@ -2,7 +2,16 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { body } = require('express-validator');
-const { db, collections, roles } = require('../config/firebase');
+const { 
+  db, 
+  collections, 
+  roles,
+  getUserByEmail,
+  createUser,
+  updateUser,
+  createAuditLog,
+  getDemoCredentials
+} = require('../config/firebase');
 const { 
   validateRegistration, 
   validateLogin, 
@@ -49,6 +58,25 @@ const getCookieOptions = (rememberMe = false) => ({
   secure: process.env.NODE_ENV === 'production',
   sameSite: 'strict',
   maxAge: rememberMe ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000, // 30 days or 1 day
+});
+
+// @route   GET /api/auth/demo-credentials
+// @desc    Get demo login credentials for testing
+// @access  Public
+router.get('/demo-credentials', (req, res) => {
+  try {
+    const credentials = getDemoCredentials();
+    res.json({
+      success: true,
+      credentials
+    });
+  } catch (error) {
+    console.error('Error getting demo credentials:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to get demo credentials' 
+    });
+  }
 });
 
 // @route   POST /api/auth/register

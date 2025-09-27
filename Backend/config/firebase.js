@@ -3,8 +3,6 @@ const admin = require('firebase-admin');
 
 // Simple in-memory database for demo purposes
 // In production, replace this with actual Firebase configuration
-const bcrypt = require('bcryptjs');
-
 const mockDB = {
   users: new Map(),
   sessions: new Map(),
@@ -13,56 +11,62 @@ const mockDB = {
 
 // Initialize demo users with hashed passwords
 const initializeDemoUsers = async () => {
-  const saltRounds = 12;
-  
-  // Demo Student User
-  const studentPassword = await bcrypt.hash('student123', saltRounds);
-  const studentId = 'demo-student-' + Date.now();
-  mockDB.users.set(studentId, {
-    id: studentId,
-    email: 'student@demo.com',
-    password: studentPassword,
-    firstName: 'John',
-    lastName: 'Student',
-    role: 'student',
-    status: 'active',
-    studentId: 'STU001',
-    phone: '+1234567890',
-    dateOfBirth: '1999-01-15',
-    address: '123 Student St, Education City',
-    profileComplete: true,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    lastLogin: null,
-  });
+  try {
+    const bcrypt = require('bcryptjs');
+    const saltRounds = 12;
+    
+    // Demo Student User
+    const studentPassword = await bcrypt.hash('student123', saltRounds);
+    const studentId = 'demo-student-' + Date.now();
+    mockDB.users.set(studentId, {
+      id: studentId,
+      email: 'student@demo.com',
+      password: studentPassword,
+      firstName: 'John',
+      lastName: 'Student',
+      role: 'student',
+      status: 'active',
+      studentId: 'STU001',
+      phone: '+1234567890',
+      dateOfBirth: '1999-01-15',
+      address: '123 Student St, Education City',
+      profileComplete: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      lastLogin: null,
+      loginAttempts: 0,
+      lockUntil: null,
+    });
 
-  // Demo Admin User
-  const adminPassword = await bcrypt.hash('admin123', saltRounds);
-  const adminId = 'demo-admin-' + Date.now();
-  mockDB.users.set(adminId, {
-    id: adminId,
-    email: 'admin@demo.com',
-    password: adminPassword,
-    firstName: 'Jane',
-    lastName: 'Administrator',
-    role: 'admin',
-    status: 'active',
-    phone: '+1987654321',
-    dateOfBirth: '1985-05-20',
-    address: '456 Admin Ave, Management District',
-    profileComplete: true,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    lastLogin: null,
-  });
+    // Demo Admin User
+    const adminPassword = await bcrypt.hash('admin123', saltRounds);
+    const adminId = 'demo-admin-' + Date.now();
+    mockDB.users.set(adminId, {
+      id: adminId,
+      email: 'admin@demo.com',
+      password: adminPassword,
+      firstName: 'Jane',
+      lastName: 'Administrator',
+      role: 'admin',
+      status: 'active',
+      phone: '+1987654321',
+      dateOfBirth: '1985-05-20',
+      address: '456 Admin Ave, Management District',
+      profileComplete: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      lastLogin: null,
+      loginAttempts: 0,
+      lockUntil: null,
+    });
 
-  console.log('Demo users initialized:');
-  console.log('Student: student@demo.com / student123');
-  console.log('Admin: admin@demo.com / admin123');
+    console.log('✅ Demo users initialized successfully:');
+    console.log('🎓 Student: student@demo.com / student123');
+    console.log('👨‍💼 Admin: admin@demo.com / admin123');
+  } catch (error) {
+    console.error('❌ Error initializing demo users:', error);
+  }
 };
-
-// Initialize demo users when the module loads
-initializeDemoUsers().catch(console.error);
 
 // Mock Firestore-like interface
 const createMockCollection = (collectionName) => ({
@@ -211,17 +215,36 @@ const db = {
 // Mock auth (not used in current implementation)
 const auth = null;
 
-// Firestore Collections
-const collections = {
-  USERS: 'users',
-  SESSIONS: 'sessions',
-  AUDIT_LOGS: 'audit_logs',
+// Demo credentials for the frontend
+const getDemoCredentials = () => {
+  return {
+    student: {
+      email: 'student@demo.com',
+      password: 'student123',
+      name: 'John Student'
+    },
+    admin: {
+      email: 'admin@demo.com',
+      password: 'admin123',
+      name: 'Jane Administrator'
+    }
+  };
 };
+
+// Initialize demo users on module load
+initializeDemoUsers().catch(console.error);
 
 // User roles
 const roles = {
   STUDENT: 'student',
   ADMIN: 'admin',
+};
+
+// Firestore Collections
+const collections = {
+  USERS: 'users',
+  SESSIONS: 'sessions',
+  AUDIT_LOGS: 'audit_logs',
 };
 
 module.exports = {
@@ -230,4 +253,107 @@ module.exports = {
   auth,
   collections,
   roles,
+  mockDB,
+  initializeDemoUsers,
+  getDemoCredentials,
+  
+  // Database operations
+  createUser: async (userData) => {
+    const id = 'user-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+    const user = {
+      id,
+      ...userData,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      loginAttempts: 0,
+      lockUntil: null,
+    };
+    mockDB.users.set(id, user);
+    return user;
+  },
+  
+  getUserByEmail: async (email) => {
+    for (const [id, user] of mockDB.users) {
+      if (user.email === email) {
+        return user;
+      }
+    }
+    return null;
+  },
+  
+  getUserById: async (id) => {
+    return mockDB.users.get(id);
+  },
+  
+  updateUser: async (id, updates) => {
+    const user = mockDB.users.get(id);
+    if (user) {
+      const updatedUser = {
+        ...user,
+        ...updates,
+        updatedAt: new Date().toISOString(),
+      };
+      mockDB.users.set(id, updatedUser);
+      return updatedUser;
+    }
+    return null;
+  },
+  
+  deleteUser: async (id) => {
+    return mockDB.users.delete(id);
+  },
+  
+  getAllUsers: async () => {
+    return Array.from(mockDB.users.values());
+  },
+  
+  searchUsers: async (query, role = null) => {
+    const users = Array.from(mockDB.users.values());
+    return users.filter(user => {
+      const matchesRole = !role || user.role === role;
+      const matchesQuery = !query || 
+        user.firstName.toLowerCase().includes(query.toLowerCase()) ||
+        user.lastName.toLowerCase().includes(query.toLowerCase()) ||
+        user.email.toLowerCase().includes(query.toLowerCase()) ||
+        (user.studentId && user.studentId.toLowerCase().includes(query.toLowerCase()));
+      return matchesRole && matchesQuery;
+    });
+  },
+  
+  // Session operations
+  createSession: async (sessionData) => {
+    const id = 'session-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+    const session = {
+      id,
+      ...sessionData,
+      createdAt: new Date().toISOString(),
+    };
+    mockDB.sessions.set(id, session);
+    return session;
+  },
+  
+  getSession: async (id) => {
+    return mockDB.sessions.get(id);
+  },
+  
+  deleteSession: async (id) => {
+    return mockDB.sessions.delete(id);
+  },
+  
+  // Audit log operations
+  createAuditLog: async (logData) => {
+    const id = 'audit-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+    const auditLog = {
+      id,
+      ...logData,
+      timestamp: new Date().toISOString(),
+    };
+    mockDB.audit_logs.set(id, auditLog);
+    return auditLog;
+  },
+  
+  getAuditLogs: async (limit = 100) => {
+    const logs = Array.from(mockDB.audit_logs.values());
+    return logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, limit);
+  },
 };

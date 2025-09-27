@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
@@ -8,11 +8,25 @@ import { useForm } from 'react-hook-form'
 import { Eye, EyeOff, User, Lock, Mail, AlertCircle, CheckCircle } from 'lucide-react'
 import { authAPI, apiUtils, type LoginCredentials } from '@/services/api'
 
+interface DemoCredentials {
+  student: {
+    email: string;
+    password: string;
+    name: string;
+  };
+  admin: {
+    email: string;
+    password: string;
+    name: string;
+  };
+}
+
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [showDemoCredentials, setShowDemoCredentials] = useState(true)
+  const [demoCredentials, setDemoCredentials] = useState<DemoCredentials | null>(null)
   const router = useRouter()
 
   const {
@@ -22,25 +36,41 @@ export default function LoginPage() {
     formState: { errors },
   } = useForm<LoginCredentials & { rememberMe: boolean }>()
 
-  // Demo credentials
-  const demoCredentials = {
-    student: {
-      email: 'student@demo.com',
-      password: 'student123',
-      role: 'Student'
-    },
-    admin: {
-      email: 'admin@demo.com',
-      password: 'admin123',
-      role: 'Admin'
-    }
-  }
+  // Fetch demo credentials on component mount
+  useEffect(() => {
+    const fetchDemoCredentials = async () => {
+      try {
+        const response = await authAPI.getDemoCredentials();
+        if (response.success && response.data) {
+          setDemoCredentials(response.data.credentials);
+        }
+      } catch (error) {
+        console.error('Failed to fetch demo credentials:', error);
+        // Fallback to hardcoded credentials
+        setDemoCredentials({
+          student: {
+            email: 'student@demo.com',
+            password: 'student123',
+            name: 'John Student'
+          },
+          admin: {
+            email: 'admin@demo.com',
+            password: 'admin123',
+            name: 'Jane Administrator'
+          }
+        });
+      }
+    };
+
+    fetchDemoCredentials();
+  }, []);
 
   const fillDemoCredentials = (type: 'student' | 'admin') => {
-    const credentials = demoCredentials[type]
-    setValue('email', credentials.email)
-    setValue('password', credentials.password)
-  }
+    if (!demoCredentials) return;
+    const credentials = demoCredentials[type];
+    setValue('email', credentials.email);
+    setValue('password', credentials.password);
+  };
 
   const onSubmit = async (data: LoginCredentials & { rememberMe: boolean }) => {
     try {
@@ -123,8 +153,8 @@ export default function LoginPage() {
                     <User className="w-4 h-4 text-blue-400 group-hover:text-blue-300" />
                   </div>
                   <div className="text-xs text-white/70 text-left">
-                    <div>📧 {demoCredentials.student.email}</div>
-                    <div>🔒 {demoCredentials.student.password}</div>
+                    <div>📧 {demoCredentials?.student?.email || 'Loading...'}</div>
+                    <div>🔒 {demoCredentials?.student?.password || 'Loading...'}</div>
                   </div>
                 </button>
                 <button
@@ -137,8 +167,8 @@ export default function LoginPage() {
                     <Lock className="w-4 h-4 text-purple-400 group-hover:text-purple-300" />
                   </div>
                   <div className="text-xs text-white/70 text-left">
-                    <div>📧 {demoCredentials.admin.email}</div>
-                    <div>🔒 {demoCredentials.admin.password}</div>
+                    <div>📧 {demoCredentials?.admin?.email || 'Loading...'}</div>
+                    <div>🔒 {demoCredentials?.admin?.password || 'Loading...'}</div>
                   </div>
                 </button>
               </div>
