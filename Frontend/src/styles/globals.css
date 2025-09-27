@@ -1,0 +1,232 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom CSS Variables for Apple-inspired design */
+:root {
+  --glass-bg: rgba(255, 255, 255, 0.1);
+  --glass-border: rgba(255, 255, 255, 0.2);
+  --shadow-light: rgba(0, 0, 0, 0.1);
+  --shadow-medium: rgba(0, 0, 0, 0.15);
+  --shadow-heavy: rgba(0, 0, 0, 0.25);
+  --apple-blue: #007AFF;
+  --apple-gray-50: #F9FAFB;
+  --apple-gray-100: #F3F4F6;
+  --apple-gray-900: #111827;
+}
+
+/* Base styles */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+}
+
+/* Glass morphism base class */
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  box-shadow: 
+    0 8px 32px var(--shadow-light),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.glass-card {
+  @apply glass p-6 transition-all duration-300 hover:shadow-2xl hover:backdrop-blur-[25px];
+}
+
+.glass-button {
+  @apply glass px-6 py-3 text-white font-medium rounded-xl 
+         transition-all duration-200 hover:scale-105 
+         active:scale-95 cursor-pointer select-none;
+}
+
+.glass-input {
+  @apply glass w-full px-4 py-3 text-white placeholder-white/60 
+         bg-white/10 border-white/20 rounded-xl
+         focus:bg-white/20 focus:border-white/40 focus:outline-none 
+         transition-all duration-200;
+}
+
+/* Apple-style buttons */
+.btn-primary {
+  @apply bg-apple-blue text-white font-semibold py-3 px-8 
+         rounded-xl transition-all duration-200 
+         hover:bg-blue-600 hover:scale-105 
+         active:scale-95 shadow-lg hover:shadow-xl;
+}
+
+.btn-secondary {
+  @apply bg-white/10 text-white font-semibold py-3 px-8 
+         rounded-xl border border-white/20 
+         transition-all duration-200 
+         hover:bg-white/20 hover:border-white/40 
+         hover:scale-105 active:scale-95;
+}
+
+.btn-danger {
+  @apply bg-red-500 text-white font-semibold py-3 px-8 
+         rounded-xl transition-all duration-200 
+         hover:bg-red-600 hover:scale-105 
+         active:scale-95 shadow-lg hover:shadow-xl;
+}
+
+/* Form styles */
+.form-group {
+  @apply mb-6;
+}
+
+.form-label {
+  @apply block text-white font-medium mb-2 text-sm;
+}
+
+.form-input {
+  @apply glass-input;
+}
+
+.form-error {
+  @apply text-red-300 text-sm mt-1 block;
+}
+
+/* Navigation styles */
+.nav-glass {
+  @apply glass fixed top-0 left-0 right-0 z-50 px-6 py-4;
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+}
+
+/* Card animations */
+@keyframes cardEnter {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-card-enter {
+  animation: cardEnter 0.5s ease-out forwards;
+}
+
+/* Loading spinner */
+.spinner {
+  @apply inline-block w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin;
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Status badges */
+.status-active {
+  @apply bg-green-500/20 text-green-300 border border-green-500/30 
+         px-3 py-1 rounded-full text-xs font-medium;
+}
+
+.status-inactive {
+  @apply bg-red-500/20 text-red-300 border border-red-500/30 
+         px-3 py-1 rounded-full text-xs font-medium;
+}
+
+.role-admin {
+  @apply bg-purple-500/20 text-purple-300 border border-purple-500/30 
+         px-3 py-1 rounded-full text-xs font-medium;
+}
+
+.role-student {
+  @apply bg-blue-500/20 text-blue-300 border border-blue-500/30 
+         px-3 py-1 rounded-full text-xs font-medium;
+}
+
+/* Custom scrollbar */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* Responsive design utilities */
+@media (max-width: 768px) {
+  .glass-card {
+    @apply p-4;
+  }
+  
+  .nav-glass {
+    @apply px-4 py-3;
+  }
+  
+  .btn-primary,
+  .btn-secondary,
+  .btn-danger {
+    @apply py-2 px-6 text-sm;
+  }
+}
+
+/* Focus styles for accessibility */
+.focus\:ring-glass:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3);
+}
+
+/* Utility classes */
+.text-shadow {
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.backdrop-blur-glass {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+/* Print styles */
+@media print {
+  body {
+    background: white;
+  }
+  
+  .glass,
+  .glass-card,
+  .glass-button,
+  .glass-input {
+    background: white;
+    border: 1px solid #ccc;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
