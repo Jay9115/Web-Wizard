@@ -1,7 +1,8 @@
 # Student Portal - WebWizard
 
 A modern, scalable, and accessible student portal with role-based management system built with Next.js, Node/Express, and Firebase.
-
+## Demo : 
+link : https://drive.google.com/drive/folders/1QwSutd6k885aniIzkpvjd16Zmi0hsW5L?usp=sharing
 ## Team : 
 -23DCS076 Jay Patel
 -23DCS075 Isha Patel
