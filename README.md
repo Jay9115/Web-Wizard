@@ -6,6 +6,15 @@
 [![Firebase](https://img.shields.io/badge/Firebase-FFCA28?style=flat-square&logo=firebase&logoColor=black)](https://firebase.google.com/)
 
 A high-performance, full-stack student management system with enterprise-grade security, built on modern web technologies.
+## Demo : 
+link : https://drive.google.com/drive/folders/1QwSutd6k885aniIzkpvjd16Zmi0hsW5L?usp=sharing
+## Team : 
+-23DCS076 Jay Patel
+-23DCS075 Isha Patel
+-23DCS081 Mahi Patel
+-23DCS088 Rudra Patel
+
+## 🌟 Features
 
 ## Architecture Overview
 
